@@ -141,11 +141,18 @@ func main() {
 		// Run the command
 		err := cmd.Run()
 
+		errStr := strings.TrimSpace(stderr.String())
+		outStr := strings.TrimSpace(stdout.String())
+
 		if err != nil {
-			fmt.Printf("Error executing command: %s\n", err)
-			fmt.Printf("Error Output: %s\n", stderr.String())
-		} else {
-			fmt.Printf("%s\n", stdout.String())
+			fmt.Printf("Error executing command: %s\n", strings.TrimSpace(err.Error()))
+			if len(errStr) > 0 {
+				fmt.Printf("Error Output:\n%s\n", errStr)
+			}
+		} else if len(errStr) > 0 {
+			fmt.Printf("Error Output:\n%s\n", errStr)
+		} else if len(outStr) > 0 {
+			fmt.Printf("%s\n", outStr)
 		}
 	}
 }
