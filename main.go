@@ -65,6 +65,11 @@ func readCommandsFromFile(filename *string) []string {
 		}
 		commands = append(commands, line)
 	}
+
+	if err := scanner.Err(); err != nil {
+		return nil
+	}
+
 	return commands
 }
 
@@ -89,11 +94,68 @@ func getCommandsPath() string {
 	return filepath.Join(exeDir, "commands.cfg")
 }
 
+func clearConsole() {
+	fmt.Print("\033[H\033[2J")
+}
+
+func confirmExit() {
+	fmt.Println("\nPress any key to exit...")
+	getPressedKey()
+}
+
+func filterCommandsToExecute(commands *[]string) {
+	selected := make([]bool, len(*commands))
+	cursor := 0
+
+	for {
+		clearConsole()
+		fmt.Println("Use UP/DOWN, SPACE to toggle, ENTER to confirm:")
+
+		for idx, cmd := range *commands {
+			checkMark := "[ ]"
+			if selected[idx] {
+				checkMark = "[x]"
+			}
+			if idx == cursor {
+				fmt.Printf("> %s %s\n", checkMark, cmd)
+			} else {
+				fmt.Printf("%s %s\n", checkMark, cmd)
+			}
+			key := getPressedKey()
+			switch key {
+			case "up":
+				if cursor > 0 {
+					cursor--
+				}
+			case "down":
+				if cursor < len(*commands)-1 {
+					cursor++
+				}
+			case "space":
+				selected[cursor] = !selected[cursor]
+			case "enter":
+				var filtered []string
+				for i, s := range selected {
+					if s {
+						filtered = append(filtered, (*commands)[i])
+					}
+				}
+				*commands = filtered
+				return
+			default:
+				*commands = (*commands)[:0]
+				return
+			}
+		}
+	}
+}
+
 func main() {
 	commandsFilePath := getCommandsPath()
 
 	if commandsFilePath == "" {
 		fmt.Println("Failed to determine the path for 'commands.cfg'.")
+		confirmExit()
 		return
 	}
 
@@ -101,31 +163,44 @@ func main() {
 		fmt.Println("'commands.cfg' not found. Creating a new one with instructions...")
 		if !createNewFile(&commandsFilePath) {
 			fmt.Println("Failed to create 'commands.cfg'")
+			confirmExit()
 			return
 		}
 		fmt.Println("'commands.cfg' created successfully. Add your commands to the file and run this script again.")
+		confirmExit()
 		return
 	}
 
 	commands := readCommandsFromFile(&commandsFilePath)
 	if commands == nil {
 		fmt.Println("Failed to read commands from 'commands.cfg'")
+		confirmExit()
 		return
 	}
 	if len(commands) == 0 {
 		fmt.Println("No commands found in 'commands.cfg'. Please add some commands and run this script again.")
+		confirmExit()
 		return
 	}
 
-	fmt.Println("The following commands will be executed:")
+	filterCommandsToExecute(&commands)
+
+	if len(commands) == 0 {
+		fmt.Println("No commands selected for execution.")
+		confirmExit()
+		return
+	}
+
+	fmt.Println("\nThe following commands will be executed:")
 	for idx, cmd := range commands {
 		num := fmt.Sprintf("%3d", idx+1)
 		fmt.Printf("%s) %s\n", num, cmd)
 	}
 
-	fmt.Println("Press Y to execute the above commands, or any other key to cancel: ")
+	fmt.Println("\nPress Y to execute the selected commands, or any other key to cancel: ")
 	if key := getPressedKey(); key != "Y" && key != "y" {
 		fmt.Println("Execution cancelled.")
+		confirmExit()
 		return
 	}
 
@@ -155,4 +230,6 @@ func main() {
 			fmt.Printf("%s\n", outStr)
 		}
 	}
+
+	confirmExit()
 }
