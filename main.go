@@ -112,40 +112,40 @@ func filterCommandsToExecute(commands *[]string) {
 		fmt.Println("Use UP/DOWN, SPACE to toggle, ENTER to confirm:")
 
 		for idx, cmd := range *commands {
-			checkMark := "[ ]"
+			checkMark, cursorMark := "[ ]", " "
 			if selected[idx] {
 				checkMark = "[x]"
 			}
 			if idx == cursor {
-				fmt.Printf("> %s %s\n", checkMark, cmd)
-			} else {
-				fmt.Printf("%s %s\n", checkMark, cmd)
+				cursorMark = ">"
 			}
-			key := getPressedKey()
-			switch key {
-			case "up":
-				if cursor > 0 {
-					cursor--
-				}
-			case "down":
-				if cursor < len(*commands)-1 {
-					cursor++
-				}
-			case "space":
-				selected[cursor] = !selected[cursor]
-			case "enter":
-				var filtered []string
-				for i, s := range selected {
-					if s {
-						filtered = append(filtered, (*commands)[i])
-					}
-				}
-				*commands = filtered
-				return
-			default:
-				*commands = (*commands)[:0]
-				return
+			fmt.Printf("%s %s %s\n", cursorMark, checkMark, cmd)
+		}
+
+		key := getPressedKey()
+		switch key {
+		case "up":
+			if cursor > 0 {
+				cursor--
 			}
+		case "down":
+			if cursor < len(*commands)-1 {
+				cursor++
+			}
+		case "space":
+			selected[cursor] = !selected[cursor]
+		case "enter":
+			var filtered []string
+			for i, s := range selected {
+				if s {
+					filtered = append(filtered, (*commands)[i])
+				}
+			}
+			*commands = filtered
+			return
+		default:
+			*commands = (*commands)[:0]
+			return
 		}
 	}
 }
