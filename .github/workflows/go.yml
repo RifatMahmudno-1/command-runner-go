@@ -23,13 +23,19 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.26'
+          go-version: '1.26.4'
 
       - name: Build EXE
         env:
           GOOS: windows
           GOARCH: amd64
         run: go build -tags prod -o command-runner.exe .
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-executable
+          path: command-runner.exe
 
       - name: Publish Release
         uses: softprops/action-gh-release@v3
