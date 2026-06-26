@@ -1,238 +1,160 @@
 package main
 
 import (
-	"bufio"
+	"command-runner/internal"
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
-
-	"atomicgo.dev/keyboard"
-	"atomicgo.dev/keyboard/keys"
 )
 
-func fileExists(filename *string) bool {
-	_, err := os.Stat(*filename)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return true
-}
-
-func createNewFile(filename *string) bool {
-	// create the file
-	file, err := os.Create(*filename)
-	if err != nil {
-		return false
-	}
-
-	// ensure the file is closed after writing
-	defer file.Close()
-
-	// prepare the content to write to the file
-	var stringBuilder strings.Builder
-	stringBuilder.WriteString("# Add your commands here, one per line.\n")
-	stringBuilder.WriteString("# Lines starting with # are comments and will be ignored.\n")
-	stringBuilder.WriteString("# Example:\n")
-	stringBuilder.WriteString("# echo Hello, World!\n")
-
-	// write the content to the file
-	_, err = file.WriteString(stringBuilder.String())
-	if err != nil {
-		return false
-	}
-	return true
-}
-
-func readCommandsFromFile(filename *string) []string {
-	// open the file for reading
-	file, err := os.Open(*filename)
-	if err != nil {
-		return nil
-	}
-	defer file.Close()
-
-	commands := []string{}
-	scanner := bufio.NewScanner(file)
-
-	// read the file line by line
-	for scanner.Scan() {
-		line := scanner.Text()
-		line = strings.TrimSpace(line)
-		if line == "" || line[0] == '#' {
-			continue
-		}
-		commands = append(commands, line)
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil
-	}
-
-	return commands
-}
-
-func getPressedKey() string {
-	pressedKey := ""
-	keyboard.Listen(func(key keys.Key) (stop bool, err error) {
-		pressedKey = key.String()
-		return true, nil
-	})
-	return pressedKey
-}
-
-func getCommandsPath() string {
-	if IsDev {
-		return "commands.cfg"
-	}
-	exe, err := os.Executable()
-	if err != nil {
-		return ""
-	}
-	exeDir := filepath.Dir(exe)
-	return filepath.Join(exeDir, "commands.cfg")
-}
-
-func clearConsole() {
-	// \033[H: Move to top
-	// \033[2J: Clear screen
-	// \033[3J: Clear scrollback buffer
-	fmt.Print("\033[H\033[2J\033[3J")
-}
-
-func confirmExit() {
-	fmt.Println("\nPress any key to exit...")
-	getPressedKey()
-}
-
-func filterCommandsToExecute(commands *[]string) {
-	selected := make([]bool, len(*commands))
-	cursor := 0
-
-	for {
-		clearConsole()
-		fmt.Println("Use UP/DOWN, SPACE to toggle, ENTER to confirm:")
-
-		for idx, cmd := range *commands {
-			checkMark, cursorMark := "[ ]", " "
-			if selected[idx] {
-				checkMark = "[x]"
-			}
-			if idx == cursor {
-				cursorMark = ">"
-			}
-			fmt.Printf("%s %s %s\n", cursorMark, checkMark, cmd)
-		}
-
-		key := getPressedKey()
-		switch key {
-		case "up":
-			if cursor > 0 {
-				cursor--
-			}
-		case "down":
-			if cursor < len(*commands)-1 {
-				cursor++
-			}
-		case "space":
-			selected[cursor] = !selected[cursor]
-		case "enter":
-			var filtered []string
-			for i, s := range selected {
-				if s {
-					filtered = append(filtered, (*commands)[i])
-				}
-			}
-			*commands = filtered
-			return
-		default:
-			*commands = (*commands)[:0]
-			return
-		}
-	}
-}
+var actions = [...]string{"Run Commands", "Add Command", "Edit Command", "Delete Command", "Exit"}
 
 func main() {
-	commandsFilePath := getCommandsPath()
-
-	if commandsFilePath == "" {
+	commandsFilePath, err := internal.GetCommandsPath()
+	if err != nil {
 		fmt.Println("Failed to determine the path for 'commands.cfg'.")
-		confirmExit()
+		internal.ConfirmExit()
 		return
 	}
 
-	if !fileExists(&commandsFilePath) {
-		fmt.Println("'commands.cfg' not found. Creating a new one with instructions...")
-		if !createNewFile(&commandsFilePath) {
+	if !internal.FileExists(commandsFilePath) {
+		fmt.Println("'commands.cfg' not found. Creating a new one...")
+		if err := internal.CreateNewFile(commandsFilePath); err != nil {
 			fmt.Println("Failed to create 'commands.cfg'")
-			confirmExit()
+			internal.ConfirmExit()
 			return
 		}
-		fmt.Println("'commands.cfg' created successfully. Add your commands to the file and run this script again.")
-		confirmExit()
-		return
+		fmt.Println("'commands.cfg' created successfully.")
+		internal.ConfirmContinue()
 	}
 
-	commands := readCommandsFromFile(&commandsFilePath)
-	if commands == nil {
+	file, err := os.OpenFile(commandsFilePath, os.O_RDWR, 0644)
+	if err != nil {
+		fmt.Println("Failed to open 'commands.cfg'")
+		internal.ConfirmExit()
+		return
+	}
+	defer file.Close()
+
+	commands, err := internal.ReadCommandsFromFile(file)
+	if err != nil {
 		fmt.Println("Failed to read commands from 'commands.cfg'")
-		confirmExit()
-		return
-	}
-	if len(commands) == 0 {
-		fmt.Println("No commands found in 'commands.cfg'. Please add some commands and run this script again.")
-		confirmExit()
+		internal.ConfirmExit()
 		return
 	}
 
-	filterCommandsToExecute(&commands)
-
-	if len(commands) == 0 {
-		fmt.Println("No commands selected for execution.")
-		confirmExit()
-		return
-	}
-
-	fmt.Println("\nThe following commands will be executed:")
-	for idx, cmd := range commands {
-		num := fmt.Sprintf("%3d", idx+1)
-		fmt.Printf("%s) %s\n", num, cmd)
-	}
-
-	fmt.Println("\nPress Y to execute the selected commands, or any other key to cancel: ")
-	if key := getPressedKey(); key != "Y" && key != "y" {
-		fmt.Println("Execution cancelled.")
-		confirmExit()
-		return
-	}
-
-	for _, command := range commands {
-		fmt.Printf("\nExecuting: %s\n", command)
-		// Prepare the command to be executed in the Windows command prompt
-		cmd := exec.Command("cmd", "/C", command)
-		var stdout, stderr strings.Builder
-		// Capture the standard output
-		cmd.Stdout = &stdout
-		// Capture the standard error
-		cmd.Stderr = &stderr
-		// Run the command
-		err := cmd.Run()
-
-		errStr := strings.TrimSpace(stderr.String())
-		outStr := strings.TrimSpace(stdout.String())
-
-		if err != nil {
-			fmt.Printf("Error executing command: %s\n", strings.TrimSpace(err.Error()))
-			if len(errStr) > 0 {
-				fmt.Printf("Error Output:\n%s\n", errStr)
+	for {
+		internal.ClearConsole()
+		switch internal.SelectCommand("Select an action:", actions[:]) {
+		case -1:
+			fmt.Println("No action selected.")
+			internal.ConfirmExit()
+			return
+		case 0: // Run Commands
+			selectedIndexes := internal.SelectCommands("Select commands to run:", commands)
+			if selectedIndexes == nil {
+				fmt.Println("No commands selected to run.")
+				internal.ConfirmContinue()
+				continue
 			}
-		} else if len(errStr) > 0 {
-			fmt.Printf("Error Output:\n%s\n", errStr)
-		} else if len(outStr) > 0 {
-			fmt.Printf("%s\n", outStr)
+			fmt.Println("Press Y to execute the selected commands or any other key to cancel.")
+			if key := internal.GetPressedKey(); key != "Y" && key != "y" {
+				fmt.Println("Execution cancelled.")
+				internal.ConfirmContinue()
+				return
+			}
+			internal.ClearConsole()
+			for _, i := range selectedIndexes {
+				command := commands[i]
+				fmt.Printf("\nExecuting: %s\n", command)
+				// Prepare the command to be executed in the Windows command prompt
+				cmd := exec.Command("cmd", "/C", command)
+				var stdout, stderr strings.Builder
+				// Capture the standard output
+				cmd.Stdout = &stdout
+				// Capture the standard error
+				cmd.Stderr = &stderr
+				// Run the command
+				err := cmd.Run()
+
+				errStr := strings.TrimSpace(stderr.String())
+				outStr := strings.TrimSpace(stdout.String())
+
+				if err != nil {
+					fmt.Printf("Error executing command: %s\n", strings.TrimSpace(err.Error()))
+					if len(errStr) > 0 {
+						fmt.Printf("Error Output:\n%s\n", errStr)
+					}
+				} else if len(errStr) > 0 {
+					fmt.Printf("Error Output:\n%s\n", errStr)
+				} else if len(outStr) > 0 {
+					fmt.Printf("%s\n", outStr)
+				}
+			}
+			internal.ConfirmContinue()
+			continue
+		case 1: // Add Command
+			newCommand, err := internal.TakeInput("Enter the new command (One Line):")
+			if err != nil {
+				fmt.Println("Failed to add command.")
+				internal.ConfirmContinue()
+				continue
+			}
+			commands = append(commands, newCommand)
+			internal.WriteCommands(commands, file)
+			fmt.Println("Command added successfully.")
+			internal.ConfirmContinue()
+			continue
+		case 2: // Edit Command
+			if len(commands) == 0 {
+				fmt.Println("No commands are available to edit.")
+				internal.ConfirmContinue()
+				continue
+			}
+			selectedIndex := internal.SelectCommand("Select a command to edit:", commands)
+			if selectedIndex == -1 {
+				fmt.Println("No command selected for editing.")
+				internal.ConfirmContinue()
+				continue
+			}
+			newCommand, err := internal.TakeInput("Enter the updated command (One Line):")
+			if err != nil {
+				fmt.Println("Failed to edit command.")
+				internal.ConfirmContinue()
+				continue
+			}
+			commands[selectedIndex] = newCommand
+			internal.WriteCommands(commands, file)
+			fmt.Println("Command updated successfully.")
+			internal.ConfirmContinue()
+			continue
+		case 3: // Delete Command
+			if len(commands) == 0 {
+				fmt.Println("No commands are available to delete.")
+				internal.ConfirmContinue()
+				continue
+			}
+			selectedIndexes := internal.SelectCommands("Select commands to delete:", commands)
+			if selectedIndexes == nil {
+				fmt.Println("No commands selected for deletion.")
+				internal.ConfirmContinue()
+				continue
+			}
+			for _, i := range selectedIndexes {
+				commands = append(commands[:i], commands[i+1:]...)
+			}
+			internal.WriteCommands(commands, file)
+			fmt.Println("Selected commands deleted successfully.")
+			internal.ConfirmContinue()
+			continue
+		case 4: // Exit
+			internal.ConfirmExit()
+			return
+		default:
+			fmt.Println("Invalid action selected.")
+			internal.ConfirmContinue()
+			continue
 		}
 	}
-
-	confirmExit()
 }

@@ -8,7 +8,6 @@ import (
 
 // ReadCommandsFromFile reads commands from a file and returns them as a slice of strings.
 // It ignores empty lines and lines starting with '#'.
-// If an error occurs while reading the file, it returns nil.
 func ReadCommandsFromFile(file *os.File) ([]string, error) {
 	commands := []string{}
 	scanner := bufio.NewScanner(file)
