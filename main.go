@@ -101,6 +101,11 @@ func main() {
 				internal.ConfirmContinue()
 				continue
 			}
+			if len(newCommand) == 0 {
+				fmt.Println("Can't add empty command")
+				internal.ConfirmContinue()
+				continue
+			}
 			commands = append(commands, newCommand)
 			internal.WriteCommands(commands, file)
 			fmt.Println("Command added successfully.")
@@ -121,6 +126,11 @@ func main() {
 			newCommand, err := internal.TakeInput("Enter the updated command (One Line):")
 			if err != nil {
 				fmt.Println("Failed to edit command.")
+				internal.ConfirmContinue()
+				continue
+			}
+			if len(newCommand) == 0 {
+				fmt.Println("Can't update with empty command. Use the delete option to remove a command.")
 				internal.ConfirmContinue()
 				continue
 			}
