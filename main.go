@@ -58,6 +58,11 @@ func main() {
 			internal.ConfirmExit()
 			return
 		case 0: // Run Commands
+			if len(commands) == 0 {
+				fmt.Println("No commands are available to run")
+				internal.ConfirmContinue()
+				continue
+			}
 			selectedIndexes := internal.SelectCommands("Select commands to run:", commands)
 			if selectedIndexes == nil {
 				fmt.Println("No commands selected to run.")
