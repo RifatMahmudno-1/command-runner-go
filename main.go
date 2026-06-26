@@ -152,7 +152,14 @@ func main() {
 				continue
 			}
 			for _, i := range selectedIndexes {
+				commands[i] = ""
+			}
+			for i := 0; i < len(commands); i++ {
+				if commands[i] != "" {
+					continue
+				}
 				commands = append(commands[:i], commands[i+1:]...)
+				i--
 			}
 			internal.WriteCommands(commands, file)
 			fmt.Println("Selected commands deleted successfully.")
