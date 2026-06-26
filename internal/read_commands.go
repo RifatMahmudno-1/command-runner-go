@@ -6,9 +6,14 @@ import (
 	"strings"
 )
 
-// ReadCommandsFromFile reads commands from a file and returns them as a slice of strings.
+// ReadCommands reads commands from a file and returns them as a slice of strings.
 // It ignores empty lines and lines starting with '#'.
-func ReadCommandsFromFile(file *os.File) ([]string, error) {
+func ReadCommands(file *os.File) ([]string, error) {
+	_, err := file.Seek(0, 0)
+	if err != nil {
+		return nil, err
+	}
+
 	commands := []string{}
 	scanner := bufio.NewScanner(file)
 

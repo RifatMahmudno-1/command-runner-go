@@ -18,7 +18,13 @@ func main() {
 		return
 	}
 
-	if !internal.FileExists(commandsFilePath) {
+	exists, err := internal.FileExists(commandsFilePath)
+	if err != nil {
+		fmt.Println("Some errors have occured while accessing 'commands.cfg'")
+		internal.ConfirmExit()
+		return
+	}
+	if !exists {
 		fmt.Println("'commands.cfg' not found. Creating a new one...")
 		if err := internal.CreateNewFile(commandsFilePath); err != nil {
 			fmt.Println("Failed to create 'commands.cfg'")
@@ -37,7 +43,7 @@ func main() {
 	}
 	defer file.Close()
 
-	commands, err := internal.ReadCommandsFromFile(file)
+	commands, err := internal.ReadCommands(file)
 	if err != nil {
 		fmt.Println("Failed to read commands from 'commands.cfg'")
 		internal.ConfirmExit()
@@ -88,7 +94,8 @@ func main() {
 					}
 				} else if len(errStr) > 0 {
 					fmt.Printf("Error Output:\n%s\n", errStr)
-				} else if len(outStr) > 0 {
+				}
+				if len(outStr) > 0 {
 					fmt.Printf("%s\n", outStr)
 				}
 			}
@@ -107,7 +114,13 @@ func main() {
 				continue
 			}
 			commands = append(commands, newCommand)
-			internal.WriteCommands(commands, file)
+			err = internal.WriteCommands(commands, file)
+			if err != nil {
+				fmt.Println("Failed to add command")
+				commands = commands[:len(commands)-1]
+				internal.ConfirmContinue()
+				continue
+			}
 			fmt.Println("Command added successfully.")
 			internal.ConfirmContinue()
 			continue
@@ -134,8 +147,15 @@ func main() {
 				internal.ConfirmContinue()
 				continue
 			}
+			oldCommand := commands[selectedIndex]
 			commands[selectedIndex] = newCommand
-			internal.WriteCommands(commands, file)
+			err = internal.WriteCommands(commands, file)
+			if err != nil {
+				fmt.Println("Failed to edit command.")
+				commands[selectedIndex] = oldCommand
+				internal.ConfirmContinue()
+				continue
+			}
 			fmt.Println("Command updated successfully.")
 			internal.ConfirmContinue()
 			continue
@@ -151,17 +171,23 @@ func main() {
 				internal.ConfirmContinue()
 				continue
 			}
-			for _, i := range selectedIndexes {
-				commands[i] = ""
+			remainingCommands := make([]string, 0, len(commands)-len(selectedIndexes))
+			deleteSet := make(map[int]bool)
+			for _, index := range selectedIndexes {
+				deleteSet[index] = true
 			}
-			for i := 0; i < len(commands); i++ {
-				if commands[i] != "" {
-					continue
+			for i, command := range commands {
+				if !deleteSet[i] {
+					remainingCommands = append(remainingCommands, command)
 				}
-				commands = append(commands[:i], commands[i+1:]...)
-				i--
 			}
-			internal.WriteCommands(commands, file)
+			err = internal.WriteCommands(remainingCommands, file)
+			if err != nil {
+				fmt.Println("Failed to delete commands.")
+				internal.ConfirmContinue()
+				continue
+			}
+			commands = remainingCommands
 			fmt.Println("Selected commands deleted successfully.")
 			internal.ConfirmContinue()
 			continue

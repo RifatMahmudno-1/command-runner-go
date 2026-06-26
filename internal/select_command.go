@@ -12,7 +12,11 @@ func SelectCommand(label string, commands []string) int {
 		if label != "" {
 			fmt.Println(label)
 		}
-		fmt.Println("Use UP/DOWN, SPACE to toggle, ENTER to confirm, ESC to cancel:")
+		if len(commands) == 0 {
+			fmt.Println("Nothing is available to select from.")
+			return -1
+		}
+		fmt.Println("Use UP/DOWN, ENTER to confirm, ESC to cancel:")
 
 		for idx, cmd := range commands {
 			cursorMark := " "

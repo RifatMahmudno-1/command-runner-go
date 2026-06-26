@@ -16,7 +16,7 @@ func WriteCommands(commands []string, file *os.File) error {
 		return err
 	}
 
-	_, err = file.WriteString(strings.Join(commands, "\n") + "\n")
+	_, err = file.WriteString(strings.Join(commands, "\n"))
 	if err != nil {
 		return err
 	}
