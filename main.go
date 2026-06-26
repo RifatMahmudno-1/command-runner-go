@@ -62,7 +62,7 @@ func main() {
 			if key := internal.GetPressedKey(); key != "Y" && key != "y" {
 				fmt.Println("Execution cancelled.")
 				internal.ConfirmContinue()
-				return
+				continue
 			}
 			internal.ClearConsole()
 			for _, i := range selectedIndexes {
