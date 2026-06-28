@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-var actions = [...]string{"Run Commands", "Add Command", "Edit Command", "Delete Command", "Exit"}
+var actions = [...]string{"Run Commands", "View Commands", "Add Command", "Edit Command", "Delete Commands", "Exit"}
 
 func main() {
 	commandsFilePath, err := internal.GetCommandsPath()
@@ -53,9 +53,10 @@ func main() {
 	for {
 		internal.ClearConsole()
 		switch internal.SelectCommand("Select an action:", actions[:]) {
-		case -1:
+		case -1: // cancel
 			fmt.Println("No action selected.")
 			internal.ConfirmExit()
+			internal.ClearConsole()
 			return
 		case 0: // Run Commands
 			if len(commands) == 0 {
@@ -106,7 +107,19 @@ func main() {
 			}
 			internal.ConfirmContinue()
 			continue
-		case 1: // Add Command
+		case 1: // View Commands
+			internal.ClearConsole()
+			if len(commands) == 0 {
+				fmt.Println("No commands are available to view.")
+			} else {
+				fmt.Println("Available Commands:")
+				for i, command := range commands {
+					fmt.Printf("%3d) %s\n", i+1, command)
+				}
+			}
+			internal.ConfirmContinue()
+			continue
+		case 2: // Add Command
 			newCommand, err := internal.TakeInput("Enter the new command (One Line):")
 			if err != nil {
 				fmt.Println("Failed to add command.")
@@ -129,7 +142,7 @@ func main() {
 			fmt.Println("Command added successfully.")
 			internal.ConfirmContinue()
 			continue
-		case 2: // Edit Command
+		case 3: // Edit Command
 			if len(commands) == 0 {
 				fmt.Println("No commands are available to edit.")
 				internal.ConfirmContinue()
@@ -164,7 +177,7 @@ func main() {
 			fmt.Println("Command updated successfully.")
 			internal.ConfirmContinue()
 			continue
-		case 3: // Delete Command
+		case 4: // Delete Command
 			if len(commands) == 0 {
 				fmt.Println("No commands are available to delete.")
 				internal.ConfirmContinue()
@@ -196,8 +209,9 @@ func main() {
 			fmt.Println("Selected commands deleted successfully.")
 			internal.ConfirmContinue()
 			continue
-		case 4: // Exit
+		case 5: // Exit
 			internal.ConfirmExit()
+			internal.ClearConsole()
 			return
 		default:
 			fmt.Println("Invalid action selected.")
