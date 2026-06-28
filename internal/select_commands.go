@@ -29,11 +29,15 @@ func SelectCommands(label string, commands []string) []int {
 		key := GetPressedKey()
 		switch key {
 		case "up":
-			if cursor > 0 {
+			if cursor == 0 {
+				cursor = len(commands) - 1
+			} else {
 				cursor--
 			}
 		case "down":
-			if cursor < len(commands)-1 {
+			if cursor == len(commands)-1 {
+				cursor = 0
+			} else {
 				cursor++
 			}
 		case "space":
